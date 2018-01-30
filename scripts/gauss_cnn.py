@@ -4,6 +4,7 @@ from __future__ import print_function
 import tensorflow as tf
 import numpy as np
 import commands
+from sklearn.model_selection import train_test_split
 
 tf.logging.set_verbosity(tf.logging.INFO)
 
@@ -49,7 +50,7 @@ def cnn_model_play(features, labels, mode):
 
     # logits layer
     logits = tf.layers.dense(inputs=dropout,
-                             units=10)
+                             units=3)
 
     predictions = {
         # generate predictions for PREDICT and EVAL mode
@@ -61,7 +62,7 @@ def cnn_model_play(features, labels, mode):
     if mode == tf.estimator.ModeKeys.PREDICT:
         return tf.estimator.EstimatorSpec(mode=mode, predictions=predictions)
 
-    onehot_labels = tf.one_hot(indices=tf.cast(labels, tf.int32), depth=10)
+    onehot_labels = tf.one_hot(indices=tf.cast(labels, tf.int32), depth=3)
     loss = tf.losses.softmax_cross_entropy(onehot_labels=onehot_labels,
                                            logits=logits)
 
@@ -91,11 +92,17 @@ def main():
     commands.getoutput('rm ../play_model/*')
 
     # load training and eval data
-    mnist = tf.contrib.learn.datasets.load_dataset("mnist")
-    train_data = mnist.train.images
-    train_labels = np.asarray(mnist.train.labels, dtype=np.int32)
-    eval_data = mnist.test.images
-    eval_labels = np.asarray(mnist.test.labels, dtype=np.int32)
+    #mnist = tf.contrib.learn.datasets.load_dataset("mnist")
+    #train_data = mnist.train.images
+    #train_labels = np.asarray(mnist.train.labels, dtype=np.int32)
+    #eval_data = mnist.test.images
+    #eval_labels = np.asarray(mnist.test.labels, dtype=np.int32)
+
+    data = np.load('../data/gauss_data.npy')
+    labels = np.load('../data/gauss_labels.npy')
+    x_train, x_test, y_train, y_test = train_test_split(data,
+                                                        labels,
+                                                        random_state=42)
 
     # create estimator
     mnist_classifier = tf.estimator.Estimator(model_fn=cnn_model_play,
@@ -106,8 +113,8 @@ def main():
                                               every_n_iter=50)
 
     # train the model
-    train_input_fn = tf.estimator.inputs.numpy_input_fn(x={"x": train_data},
-                                                        y=train_labels,
+    train_input_fn = tf.estimator.inputs.numpy_input_fn(x={"x": x_train},
+                                                        y=y_train,
                                                         batch_size=100,
                                                         num_epochs=None,
                                                         shuffle=True)
@@ -116,8 +123,8 @@ def main():
                            hooks=[logging_hook])
 
     # evaluate the model and print the results
-    eval_input_fn = tf.estimator.inputs.numpy_input_fn(x={"x": eval_data},
-                                                       y=eval_labels,
+    eval_input_fn = tf.estimator.inputs.numpy_input_fn(x={"x": x_test},
+                                                       y=y_test,
                                                        num_epochs=1,
                                                        shuffle=False)
     eval_results = mnist_classifier.evaluate(input_fn=eval_input_fn)
