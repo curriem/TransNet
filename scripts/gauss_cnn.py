@@ -1,6 +1,11 @@
-import numpy as np
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 import tensorflow as tf
-import matplotlib.pyplot as plt
+import numpy as np
+import commands
+
+tf.logging.set_verbosity(tf.logging.INFO)
 
 
 def cnn_model_play(features, labels, mode):
@@ -81,6 +86,10 @@ def cnn_model_play(features, labels, mode):
 
 
 def main():
+
+    # delete junk in play_model dir
+    commands.getoutput('rm ../play_model/*')
+
     # load training and eval data
     mnist = tf.contrib.learn.datasets.load_dataset("mnist")
     train_data = mnist.train.images
@@ -103,16 +112,16 @@ def main():
                                                         num_epochs=None,
                                                         shuffle=True)
     mnist_classifier.train(input_fn=train_input_fn,
-                           steps=20000,
+                           steps=10000,
                            hooks=[logging_hook])
 
     # evaluate the model and print the results
-    eval_input_fn = tf.estimator.inputs.numpy_inpus_fn(x={"x": eval_data},
+    eval_input_fn = tf.estimator.inputs.numpy_input_fn(x={"x": eval_data},
                                                        y=eval_labels,
                                                        num_epochs=1,
                                                        shuffle=False)
     eval_results = mnist_classifier.evaluate(input_fn=eval_input_fn)
-    print eval_results
+    print(eval_results)
 
 
 main()
