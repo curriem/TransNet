@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from scipy import signal
 
 
-def gauss_kern(std, kern_len=21):
+def gauss_kern(std, kern_len=28):
     """ Returns 2D Gaussian kernel array"""
 
     gkern_1d = signal.gaussian(kern_len, std=std).reshape(kern_len, 1)
@@ -11,7 +11,7 @@ def gauss_kern(std, kern_len=21):
     return gkern_2d
 
 
-def circle_kern(radius, kern_len=21):
+def circle_kern(radius, kern_len=28):
     center = int((kern_len-1)/2)
     ckern = np.zeros((kern_len, kern_len))
     y, x = np.ogrid[-center: center+1, -center: center+1]
@@ -19,7 +19,7 @@ def circle_kern(radius, kern_len=21):
     ckern = mask.astype(float)
     return ckern
 
-def square_kern(radius, kern_len=21):
+def square_kern(radius, kern_len=28):
     center = int((kern_len-1)/2)
     skern_1d = np.zeros(kern_len)
     skern_1d[center-radius:center+radius+1] = 1
@@ -48,10 +48,11 @@ for n in range(20000):
     ckern = add_noise(ckern)
 
     data_stack.append(gkern)
-    class_stack.append(1)
+    class_stack.append(0)
     data_stack.append(skern)
-    class_stack.append(2)
+    class_stack.append(1)
     data_stack.append(ckern)
-    class_stack.append(3)
+    class_stack.append(2)
 data_stack = np.array(data_stack)
 np.save('../data/play_data.npy', data_stack)
+np.save('../data/play_data_class.npy', class_stack)
