@@ -27,7 +27,7 @@ def square_kern(radius, kern_len=28):
 
 def add_noise(kern):
     noise = np.random.standard_normal(kern.shape)
-    return noise*0.05 + kern
+    return noise*np.random.random()/5 + kern
 
 for m in range(10):
     data_stack = np.empty((0, 28*28))
