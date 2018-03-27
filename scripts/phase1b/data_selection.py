@@ -18,14 +18,6 @@ def hierarchical_clustering(ra, dec):
     return clusters
 
 
-def select_by_bullshit(unique_clusters):
-    cluster_ok_bool_inds = []
-    for cl in unique_clusters:
-        inds = np.where(clusters == cl)
-        filts = filters[inds]
-        print np.unique(filts, return_counts=True)
-        assert False
-
 
 def separate_by_epochs(unique_clusters):
     for cl in unique_clusters:
