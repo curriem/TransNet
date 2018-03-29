@@ -6,28 +6,22 @@ import pickle
 import rand_cmap
 from astropy.time import Time
 
+# multiply ra by cos(dec) in rad 
 
-def hierarchical_clustering(ra, dec):
+def hierarchical_clustering(ra, dec): # convert to radians
     X = np.array([ra, dec]).T
     Z = linkage(X, 'complete')
 
     max_d = 0.0167
 
     clusters = fcluster(Z, max_d, criterion='distance')
+    # look into different criterion 
 
     return clusters
 
 
 
-def separate_by_epochs(unique_clusters):
-    for cl in unique_clusters:
-        inds = np.where(clusters == cl)
-        cluster_stop_dates = stop_date[inds]
-        print stop_date[inds]
-        assert False
-
-
-def select_by_date(unique_clusters, days_buffer=100):
+def select_by_date(unique_clusters, days_buffer=20):
     cluster_ok_bool_inds = []
     for cl in unique_clusters:
         inds = np.where(clusters == cl)
@@ -48,18 +42,6 @@ def select_by_date(unique_clusters, days_buffer=100):
     unique_clusters = unique_clusters[cluster_ok_bool_inds]
 
     return unique_clusters
-
-
-def select_by_num_obs(clusters, min_num_obs=8):
-    unique, unique_inds, unique_counts = np.unique(clusters,
-                                                   return_counts=True,
-                                                   return_index=True)
-
-    inds_where_many_obs = np.where(unique_counts >= 4)
-
-    clusters_with_many_obs = unique[inds_where_many_obs]
-
-    return clusters_with_many_obs
 
 
 def sort_cluster_coords(unique_clusters, ra, dec):
@@ -95,21 +77,20 @@ def plot_ra_dec_scatter(ra, dec, clusters):
 
 if __name__ == '__main__':
 
-    wfc3_data = pickle.load(open('../../data/wfc3_data.p', 'rb'))
+    wfc3_data = pickle.load(open('wfc3_data.p', 'rb'))
 
     # data
     ra = wfc3_data['RA']
     dec = wfc3_data['Dec']
+    ra_adj = ra*np.cos(np.deg2rad(dec))
     stop_date = wfc3_data['stop_date']
     filters = wfc3_data['filter']
 
     t = Time(stop_date)
     stop_date = t.mjd
 
-    clusters = hierarchical_clustering(ra, dec)
+    clusters = hierarchical_clustering(ra_adj, dec)
     unique_clusters = np.unique(clusters)
-
-    unique_clusters = select_by_num_obs(clusters)
 
     unique_clusters = select_by_date(unique_clusters)
 
@@ -120,9 +101,9 @@ if __name__ == '__main__':
         ra_cluster, \
         dec_cluster = sort_cluster_coords(unique_clusters, ra, dec)
 
-    plot_ra_dec_scatter(ra, dec, clusters)
+    #plot_ra_dec_scatter(ra, dec, clusters)
 
-    plot_ra_dec_scatter(ra_all_ims, dec_all_ims, clusters_all_ims)
+    #plot_ra_dec_scatter(ra_all_ims, dec_all_ims, clusters_all_ims)
 
     plt.show()
 

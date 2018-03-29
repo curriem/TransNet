@@ -29,7 +29,7 @@ def find_filter(flt_list, the_filters):
         filt_list = [copy.deepcopy(the_filters)]
     else:
         filt_list = copy.deepcopy(the_filters)
-        
+
     f125w_list = []
 
     for item in flt_list:
@@ -88,14 +88,14 @@ def transfer_header(infl, outfl):
     fout = pyfits.open(outfl, 'update')
 
     dont_transfer = ["HSTSLAC", "MDRIZSKY", "LACOSMIC", "HISTORY", "COMMENT", ""]
-    
+
     print "Transferring: ",
     for i in range(len(fin)):
         for key in fin[i].header:
             if dont_transfer.count(key) == 0:
                 if fin[i].header[key] != fout[i].header.get(key, default = None):
                     print key,
-                    
+
                     fout[i].header[key] = fin[i].header[key]
     fout.flush()
     fout.close()
@@ -121,7 +121,7 @@ def do_tweak(flt_list, besti, lowthreshold = 0):
             acs = True
         else:
             tmp_ims.append(flt_list[i].replace(".fits", "_filter.fits"))
-        
+
             if flt_list[i] == tmp_ims[i]:
                 print "Error with ", flt_list[i]
                 sys.exit(1)
@@ -146,11 +146,11 @@ def do_tweak(flt_list, besti, lowthreshold = 0):
         do_it("cp -f " + tmp_ims[i] + " " + tmp_ims[i].replace("/orig_files/", "/"))
         tmp_ims[i] = tmp_ims[i].replace("/orig_files/", "/")
 
-    
+
     print "tmp_ims ", tmp_ims
-    
+
     tweakref = tmp_ims[besti]
-    
+
     tweakreg.TweakReg(','.join(tmp_ims),
                       updatehdr=True,
                       shiftfile=True, # This is just for show
@@ -171,7 +171,7 @@ def do_tweak(flt_list, besti, lowthreshold = 0):
     f = open("shifts.txt")
     lines = f.read()
     f.close()
-    
+
     if lines.find(" nan ") != -1:
         print "Couldn't match!"
 
@@ -181,12 +181,12 @@ def do_tweak(flt_list, besti, lowthreshold = 0):
         else:
             print "...even though lowthreshold is ", lowthreshold
             sys.exit(1)
-        
-        
+
+
     for i in range(len(flt_list)):
         print "Transferring from ", tmp_ims[i], flt_list[i]
         transfer_header(tmp_ims[i], flt_list[i])
-    
+
 
 
 def do_drizzle(flc_list, outputname, clean = True, refimage = "", build = True, cr_sensitive = False, outputscale = 0.05):
@@ -347,9 +347,24 @@ def sort_ims(ims_path):
            filt2_epoch1_fls, filt2_epoch2_fls
 
 
-path = '/Users/mcurrie/Projects/TransiNet/data/set_%s/orig_files' % set_num
+def get_filters(ims_path):
+    origfls = glob.glob(ims_path+'/*flt.fits')
+    filts = []
+    for fl in origfls:
+        f = pyfits.open(fl)
+        FILTER = f[0].header["FILTER"]
+        f.close()
+        filts.append(FILTER)
 
-data_path = '/Users/mcurrie/Projects/TransiNet/data/'
+    unique_filters = np.unique(filts)
+    return unique_filters
+
+
+#path = '/Users/mcurrie/Projects/TransiNet/data/set_%s/orig_files' % set_num
+
+#data_path = '/Users/mcurrie/Projects/TransiNet/data/'
+path = '/Volumes/My_book/TransiNet/data/set_%s/orig_files' % set_num
+data_path = '/Volumes/My_book/TransiNet/data/'
 
 # step 0: stack images
 
@@ -455,6 +470,8 @@ for filter in ["F775W", "F814W", "F606W", "F850LP"]:
 
 
 
+unique_filters = get_filters(path)
+'''
 filt1, filt2, filt1_epoch1_fls, filt1_epoch2_fls, filt2_epoch1_fls,\
 filt2_epoch2_fls = sort_ims(path)
 
@@ -464,13 +481,16 @@ e2_fls_new = []
 for item in e2_fls:
     e2_fls_new.append(data_path + 'set_%s/orig_files/' % set_num +item)
 e2_fls = e2_fls_new
+'''
 
-with open(data_path + 'paramfile.txt', 'wb') as paramfl:
+origfls = glob.glob(path+'/*flt.fits')
+
+with open(data_path + 'paramfile_%s.txt' % set_num, 'wb') as paramfl:
 
     paramfl.write('drz\t%s/set_%s/%s_stack_drz.fits\n' % (data_path,
                                                           set_num,
-                                                          filters[1]))
-    paramfl.write('aligned\t%s\n' % ' '.join(e2_fls))
+                                                          unique_filters[0]))
+    paramfl.write('aligned\t%s\n' % ' '.join(origfls))
     paramfl.write('F125W_zp\t26.23\n')
     paramfl.write('F105W_zp\t26.24\n')
     paramfl.write('F140W_zp\t26.44\n')
@@ -504,7 +524,8 @@ for item in fls_by_filter_date:
 
     filter_counter.append(item[0])
 
-    refimage = commands.getoutput("grep drz "+data_path+"paramfile.txt").split(None)[1] + "[SCI]"
+    refimage = commands.getoutput("grep drz "+data_path+"paramfile_%s.txt" %
+                                  set_num).split(None)[1] + "[SCI]"
     print "refimage", refimage
 
     do_drizzle([data_path + "set_"+set_num+"_epochs/" + subitem.split("/")[-1] for subitem in fls_by_filter_date[item]],
@@ -512,6 +533,5 @@ for item in fls_by_filter_date:
                refimage=refimage,
                outputscale=outputscale)
 
-do_it("rm i* fits*")
 
 

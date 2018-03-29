@@ -30,6 +30,19 @@ def run_sep(sub):
     return coords
 
 
+def subtract_ims(im1_path, im2_path):
+    im1 = pyfits.open(im1_path)
+    im2 = pyfits.open(im2_path)
+    data1 = im1[1].data
+    data2 = im2[1].data
+    im1.close()
+    im2.close()
+    sub = data1 - data2
+    return sub
+
+
+
+
 def main():
     ''' steps:
     1) load images
@@ -38,7 +51,7 @@ def main():
     4) make postage stamps around sep objects
     '''
     set_num = sys.argv[1]
-    path = '/Users/mcurrie/Projects/TransiNet/data/set_%s_epochs/' % set_num
+    path = '/Volumes/My_book/TransiNet/data/set_%s_epochs/' % set_num
     filter_epochs = glob.glob(path + 'F*drz*')
     filters = []
     epochs = []
@@ -48,6 +61,95 @@ def main():
         filters.append(filt)
         epochs.append(epoch)
     unique_filts = np.unique(filters)
+    stamp_size = 14
+    all_stamps = np.empty((0, stamp_size*2, stamp_size*2, 2))
+    info = []
+    for filt in unique_filts:
+        print 'Working on filter ', filt
+        filt_ims = glob.glob(path + filt + '*drz*')
+        num_epochs = len(filt_ims)
+        print 'Num epochs:', num_epochs
+        subtractions = []
+        sub_info = []
+        if num_epochs == 2:
+            sub1 = subtract_ims(filt_ims[0], filt_ims[1])
+            sub2 = subtract_ims(filt_ims[1], filt_ims[0])
+            subtractions.append(sub1)
+            subtractions.append(sub2)
+            sub_info.append(filt_ims[0] + '-' + filt_ims[1])
+            sub_info.append(filt_ims[1] + '-' + filt_ims[0])
+        elif num_epochs == 3:
+            sub1 = subtract_ims(filt_ims[0], filt_ims[1])
+            sub2 = subtract_ims(filt_ims[0], filt_ims[2])
+            sub3 = subtract_ims(filt_ims[1], filt_ims[0])
+            sub4 = subtract_ims(filt_ims[1], filt_ims[2])
+            sub5 = subtract_ims(filt_ims[2], filt_ims[0])
+            sub6 = subtract_ims(filt_ims[2], filt_ims[1])
+            subtractions.append(sub1)
+            subtractions.append(sub2)
+            subtractions.append(sub3)
+            subtractions.append(sub4)
+            subtractions.append(sub5)
+            subtractions.append(sub6)
+            sub_info.append(filt_ims[0] + '-' + filt_ims[0])
+            sub_info.append(filt_ims[0] + '-' + filt_ims[2])
+            sub_info.append(filt_ims[1] + '-' + filt_ims[0])
+            sub_info.append(filt_ims[1] + '-' + filt_ims[2])
+            sub_info.append(filt_ims[2] + '-' + filt_ims[0])
+            sub_info.append(filt_ims[2] + '-' + filt_ims[1])
+        elif num_epochs == 1:
+            continue
+        else:
+            assert False, "Fix your code to handle "+str(num_epochs)+"epochs"
+
+        obj_coords = np.empty((0, 2))
+        corresponding_sub_info = np.empty(0)
+        corresponding_sub_num = np.empty(0)
+        for n in range(len(sub_info)):
+            print 'working on subtraction', n
+            #plt.figure()
+            #plt.imshow(subtractions[n], cmap='gray')
+            #plt.colorbar()
+            #plt.show()
+            sep_results = run_sep(subtractions[n])
+            print 'done running sep'
+            obj_coords = np.concatenate((obj_coords,
+                                         sep_results))
+            num_coords, two = sep_results.shape
+            corresponding_sub_info = np.concatenate((corresponding_sub_info,
+                                                    np.repeat(sub_info[n],
+                                                              num_coords)))
+            corresponding_sub_num = np.concatenate((corresponding_sub_num,
+                                                   n*np.ones(num_coords)))
+        print 'found', obj_coords.shape[0], 'candidates'
+        for n in range(len(corresponding_sub_num)):
+            print n
+            x, y = obj_coords[n, :]
+            sub = subtractions[int(corresponding_sub_num[n])]
+            stamp1 = tfuncs.make_stamp(int(x), int(y), sub, stamp_size)
+            stamp2 = tfuncs.make_stamp(int(x), int(y), sub, stamp_size)
+            try:
+                stamp1_temp = stamp1 + np.abs(np.nanmin(stamp1))
+                stamp2_temp = stamp2 + np.abs(np.nanmin(stamp2))
+                stamp1_temp /= np.nanmax(stamp1_temp)
+                stamp2_temp /= np.nanmax(stamp2_temp)
+                obj_stamps = np.stack((stamp1_temp, stamp2_temp), axis=-1)
+                all_stamps = np.append(all_stamps, [obj_stamps], axis=0)
+                info.append([str(x),str(y), corresponding_sub_info[n]])
+            except:
+                pass
+        print 'done making stamps'
+
+    info = np.array(info)
+    print all_stamps.shape
+    print info.shape
+    n, x, y, z = all_stamps.shape
+    print 'Found', n, 'candidates'
+    np.save('../../data/candidate_info_set_%s.npy' % set_num, info)
+    np.save('../../data/object_candidates_set_%s.npy' % set_num, all_stamps)
+'''
+
+    ##########################################################
     unique_epochs = np.unique(epochs)
     assert len(unique_epochs) == 2
     subtractions = {}
@@ -126,6 +228,6 @@ def main():
     print 'Found', n, 'candidates'
     np.save('../../data/candidate_info_set_%s.npy' % set_num, info)
     np.save('../../data/object_candidates_set_%s.npy' % set_num, all_stamps)
-
+'''
 
 main()

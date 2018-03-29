@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pickle
 
-path = '/Users/mcurrie/Desktop/wfc3_all_ims.txt'
+path = 'wfc3_all_ims.txt'
 counter = 0
 
 ims = dict()
@@ -47,4 +47,4 @@ with open(path, 'rb') as fl:
             pass
 for key in ims.keys():
     ims[key] = np.array(ims[key])
-pickle.dump(ims, open('../../data/wfc3_data.p', 'wb'))
+pickle.dump(ims, open('wfc3_data.p', 'wb'))
