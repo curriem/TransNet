@@ -190,6 +190,8 @@ def do_tweak(flt_list, besti, lowthreshold = 0):
 
 
 def do_drizzle(flc_list, outputname, clean = True, refimage = "", build = True, cr_sensitive = False, outputscale = 0.05):
+    print "overriding cr_sensitive", cr_sensitive
+    cr_sensitive = True
     n_img = len(flc_list)
 
     combine_type = "minmed"*(n_img <= 4.) + "median"*(n_img > 4)
@@ -215,9 +217,9 @@ def do_drizzle(flc_list, outputname, clean = True, refimage = "", build = True, 
                               updatewcs=nicmos, # This is right
                               proc_unit='native',
 
-                              driz_sep_kernel='gaussian',
+                              driz_sep_kernel='square',
                               driz_sep_pixfrac=1.0,
-                              driz_sep_scale=outputscale,
+                              driz_sep_scale=0.128,
                               driz_sep_bits=(0 + (512+1024+2048)*nicmos 
                                              + (2048+8192)*wfc3),
 
