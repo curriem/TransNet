@@ -35,7 +35,7 @@ def plot_candidate(im1a_path, im1b_path, im2a_path, im2b_path,
     
     sub1 = im1a_stamp - im1b_stamp
     sub2 = im2a_stamp - im2b_stamp
-
+    '''
     fig, ax = plt.subplots(3, 2, figsize=(4,6),
                            sharey=True)
     ax[0, 0].imshow(im1a_stamp, cmap='gray')
@@ -56,11 +56,20 @@ def plot_candidate(im1a_path, im1b_path, im2a_path, im2b_path,
                   rotation=90)
     ax[2, 0].text(-8, 13, 'subtraction\nE1-E2',
                   rotation=90)
-    ax[2, 0].text(0, 40, 'score: %.03f\nRA: %.03f\nDec: %.03f' % (score[0], ra,
-                                                                 dec))
+    ax[2, 0].text(0, 40,
+                  'score: %.03f\nRA: %.06f, pix: %s\nDec: %.06f, pix: %s'\
+                  % (score[0], ra, str(pix_x), dec, str(pix_y)))
     ax[0, 0].set_title(filt1)
     ax[0, 1].set_title(filt2)
     plt.savefig(save_path+str(n)+'.pdf')
+    '''
+    set_num = save_path.split('/')[-1]
+    set_num = set_num.split('_')[0]
+    with open('candidate_info_%s.txt' % set_num, 'ab') as f:
+        f.write('%s\t%.06f\t%.06f\t%.03f\n' % (save_path.split('/')[-1],
+                                               ra,
+                                               dec,
+                                               score[0]))
 
 
 def run_sep(sub):
@@ -84,6 +93,7 @@ def run_sep(sub):
 def subtract_ims(im1_path, im2_path):
     im1 = pyfits.open(im1_path)
     im2 = pyfits.open(im2_path)
+    sub_template = im1
     data1 = im1[1].data
     data2 = im2[1].data
     im1.close()
@@ -96,6 +106,7 @@ def subtract_ims(im1_path, im2_path):
     #plt.imshow(sub, cmap='gray')
     #plt.colorbar()
     #plt.show()
+
     return sub
 
 model_path = '../../model/transinet_v1.h5'
@@ -107,22 +118,24 @@ epoch1 = sys.argv[4]
 epoch2 = sys.argv[5]
 
 save_path = \
-  '/Users/mcurrie/Projects/TransiNet/plots/set_%s/%s_%s_%s-%s_cand' \
-            % (set_num, filt1, filt2, epoch1, epoch2 )
+  '/Users/mcurrie/Projects/TransiNet/plots/set_%s/set%s_%s_%s_%s-%s_cand' \
+            % (set_num, set_num, filt1, filt2, epoch1, epoch2 )
 
-master_path = '/Volumes/My_Book/TransiNet/data/'
-set_path = master_path + 'set_%s_epochs/' % set_num.zfill(3)
+master_path = '/Users/mcurrie/Projects/TransiNet/data/'
+set_path = master_path + 'set_%s/' % set_num.zfill(3)
 im1a_path = set_path + '%s_epoch0%s_drz.fits' % (filt1, epoch1)
 im1b_path = set_path + '%s_epoch0%s_drz.fits' % (filt1, epoch2)
 im2a_path = set_path + '%s_epoch0%s_drz.fits' % (filt2, epoch1)
 im2b_path = set_path + '%s_epoch0%s_drz.fits' % (filt2, epoch2)
-print im1a_path
-print im1b_path
-print im2a_path
-print im2b_path
 
 sub1 = subtract_ims(im1a_path, im1b_path)
 sub2 = subtract_ims(im2a_path, im2b_path)
+'''
+hdu1 = pyfits.PrimaryHDU(sub1)
+hdu2 = pyfits.PrimaryHDU(sub2)
+hdu1.writeto('sub1.fits')
+hdu2.writeto('sub2.fits')
+'''
 stamp_size=14
 coords1 = run_sep(sub1)
 coords2 = run_sep(sub2)
@@ -144,12 +157,13 @@ for coord in coords:
         # run through cnn
         probs = model.predict(np.array([obj_stamps]))
         prob_of_SN = probs.T[0]
+        if prob_of_SN > 0.0:
+            print 'found a candidate'
+            plot_candidate(im1a_path, im1b_path, im2a_path, im2b_path,
+                           x, y, prob_of_SN, save_path, n)
+            n+=1
 
-    except:
+
+    except ValueError:
         print 'passing'
         pass
-    if prob_of_SN > 0.97:
-        print 'found a candidate'
-        plot_candidate(im1a_path, im1b_path, im2a_path, im2b_path,
-                       x, y, prob_of_SN, save_path, n)
-        n+=1

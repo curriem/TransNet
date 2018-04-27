@@ -12,7 +12,7 @@ def hierarchical_clustering(ra, dec): # convert to radians
     X = np.array([ra, dec]).T
     Z = linkage(X, 'complete')
 
-    max_d = 0.0167
+    max_d = 1E-8
 
     clusters = fcluster(Z, max_d, criterion='distance')
     # look into different criterion 
@@ -71,8 +71,8 @@ def plot_ra_dec_scatter(ra, dec, clusters):
     plt.figure(figsize=(10, 8))
     plt.scatter(ra, dec,
                 alpha=0.3, c=clusters, cmap=new_cmap)
-    plt.ylim(-80, 80)
-    plt.xlim(0, 270)
+    #plt.ylim(-80, 80)
+    #plt.xlim(0, 270)
 
 
 if __name__ == '__main__':
@@ -82,14 +82,19 @@ if __name__ == '__main__':
     # data
     ra = wfc3_data['RA']
     dec = wfc3_data['Dec']
-    ra_adj = ra*np.cos(np.deg2rad(dec))
+    x_map = np.sin(np.deg2rad(dec)) * np.cos(np.deg2rad(ra))
+    y_map = np.sin(np.deg2rad(dec)) * np.sin(np.deg2rad(ra))
+    #plt.figure()
+    #plt.scatter(x_map, y_map, alpha=0.5)
+    #plt.show()
+    #assert False
     stop_date = wfc3_data['stop_date']
     filters = wfc3_data['filter']
 
     t = Time(stop_date)
     stop_date = t.mjd
 
-    clusters = hierarchical_clustering(ra_adj, dec)
+    clusters = hierarchical_clustering(x_map, y_map)
     unique_clusters = np.unique(clusters)
 
     unique_clusters = select_by_date(unique_clusters)
@@ -101,12 +106,9 @@ if __name__ == '__main__':
         ra_cluster, \
         dec_cluster = sort_cluster_coords(unique_clusters, ra, dec)
 
-    #plot_ra_dec_scatter(ra, dec, clusters)
+    #plot_ra_dec_scatter(x_map, y_map, clusters)
 
     #plot_ra_dec_scatter(ra_all_ims, dec_all_ims, clusters_all_ims)
-
-    plt.show()
-
-    with open('clustered_wfc3_coords.txt', 'wb') as fl:
+    with open('clustered_wfc3_coords2.txt', 'wb') as fl:
         for n in range(len(ra_cluster)):
             fl.write('%0.4f\t%0.4f\n' % (ra_cluster[n], dec_cluster[n]))

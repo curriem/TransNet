@@ -157,7 +157,7 @@ def do_tweak(flt_list, besti, lowthreshold = 0):
                       ############ Change This Between Iterations: ##########
                       refimage=tweakref,
                       updatewcs=False, # I think this should always be false.
-                      searchrad=2,
+                      searchrad=4,
                       searchunits='arcseconds',
                       threshold=(1. + 7.*acs)/(lowthreshold + 1.),
                       conv_width=(2.5 + 1.*acs), # 3.5 for optical, 2.5 for IR
@@ -365,8 +365,10 @@ def get_filters(ims_path):
 #path = '/Users/mcurrie/Projects/TransiNet/data/set_%s/orig_files' % set_num
 
 #data_path = '/Users/mcurrie/Projects/TransiNet/data/'
-path = '/Volumes/My_book/TransiNet/data/set_%s/orig_files' % set_num
-data_path = '/Volumes/My_book/TransiNet/data/'
+#path = '/Volumes/My_book/TransiNet/data/set_%s/orig_files' % set_num
+path = '/Users/mcurrie/Projects/TransiNet/data/set_%s/orig_files' % set_num
+#data_path = '/Volumes/My_book/TransiNet/data/'
+data_path = '/Users/mcurrie/Projects/TransiNet/data/'
 
 # step 0: stack images
 
