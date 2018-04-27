@@ -18,6 +18,59 @@ import pyfits
 import cPickle as pickle
 
 
+def baseline_model(input_shape):
+    model = Sequential()
+    model.add(Conv2D(32, (5, 5), input_shape=input_shape, activation='relu'))
+    model.add(MaxPooling2D(pool_size=(2, 2)))
+    model.add(Dropout(0.2))
+    model.add(Flatten())
+    model.add(Dense(128, activation='relu'))
+    model.add(Dense(num_classes, activation='softmax'))
+    model.compile(loss='categorical_crossentropy', optimizer='adam',
+                  metrics=['accuracy'])
+    return model
+
+
+def deeper_model(input_shape):
+    model = Sequential()
+    model.add(Conv2D(30, (5, 5), input_shape=input_shape, activation='relu'))
+    model.add(MaxPooling2D(pool_size=(2, 2)))
+    model.add(Conv2D(15, (3, 3), activation='relu'))
+    model.add(MaxPooling2D(pool_size=(2, 2)))
+    model.add(Dropout(0.2))
+    model.add(Flatten())
+    model.add(Dense(128, activation='relu'))
+    model.add(Dense(50, activation='relu'))
+    model.add(Dense(num_classes, activation='softmax'))
+    model.compile(loss='categorical_crossentropy', optimizer='adam',
+                  metrics=['accuracy'])
+    return model
+
+
+def mnist_model(input_shape):
+    model = Sequential()
+    model.add(Conv2D(32, kernel_size=(3, 3),
+                     activation='relu',
+                     input_shape=input_shape))
+    model.add(Conv2D(64, (3, 3), activation='relu'))
+    model.add(MaxPooling2D(pool_size=(2, 2)))
+.(Dropout(0.25))
+    model.add(Flatten())
+    model.add(Dense(128, activation='relu'))
+    model.add(Dropout(0.5))
+    model.add(Dense(2, activation='softmax'))
+    model.compile(loss=keras.losses.categorical_crossentropy,
+                  optimizer=keras.optimizers.Adadelta(),
+                  metrics=['accuracy'])
+    return model
+
+def vgg_like_model(input_shape):
+    model = Sequential()
+    model.add(Conv2D(96, (3, 3), activation='relu', input_shape=input_shape))
+    model.add(Conv2D(96, (3, 3), activation='relu'))
+    model.add(MaxPooling2D(pool_size=(2, 2)))
+
+
 
 
 def plot_confusion_matrix(
@@ -119,12 +172,17 @@ num_channels = 2
 
 # the data, shuffled and split between train and test sets
 (x_train, y_train), (x_test, y_test) = mnist.load_data()
-data = np.load('../data/SN_data.npy')
-labels = np.load('../data/SN_labels.npy')
+data = np.load('../data/training_data.npy')
+labels = np.load('../data/training_labels.npy')
+mags = np.load('../data/training_mags.npy')
 print data.shape
+
+
+
 print labels.shape
-x_train, x_test, y_train, y_test = train_test_split(data,
+x_train, x_test, y_train, y_test, mags_train, mags_test = train_test_split(data,
                                                     labels,
+                                                                           mags,
                                                     random_state=42)
 
 #x_train = x_train[:,:,:,0]
@@ -133,7 +191,7 @@ x_train, x_test, y_train, y_test = train_test_split(data,
 if int(sys.argv[1]):
     for n in np.random.randint(len(y_train), size=20):
         fig, axes = plt.subplots(1, 1)
-        cb = axes.imshow(x_train[n, :, :], cmap='gray')
+        cb = axes.imshow(x_train[n, :, :, 0], cmap='gray')
         #axes[1].imshow(x_train[n, :, :, 1], cmap='gray')
         fig.colorbar(cb)
         plt.title(y_train[n])
@@ -168,12 +226,37 @@ print x_test.shape[0],  'test samples'
 y_train = keras.utils.to_categorical(y_train, num_classes)
 y_test = keras.utils.to_categorical(y_test, num_classes)
 
+
+#model = baseline_model(input_shape)
+#model.fit(x_train, y_train, validation_data=(x_test, y_test), epochs=5,
+#          batch_size=100, verbose=1)
+#scores = model.evaluate(x_test, y_test, verbose=1)
+#print("CNN Error: %.2f%%" % (100-scores[1]*100))
+
+
+model = deeper_model(input_shape)
+model.fit(x_train, y_train, validation_data=(x_test, y_test), epochs=5,
+                      batch_size=100, verbose=1)
+scores = model.evaluate(x_test, y_test, verbose=1)
+print("CNN Error: %.2f%%" % (100-scores[1]*100))
+
+#model = mnist_model(input_shape)
+#model.fit(x_train, y_train, validation_data=(x_test, y_test), epochs=10,
+#                      batch_size=100, verbose=1)
+#scores = model.evaluate(x_test, y_test, verbose=1)
+#print("CNN Error: %.2f%%" % (100-scores[1]*100))
+
+'''
+
 model = Sequential()
 model.add(Conv2D(32, kernel_size=(3, 3),
                  activation='relu',
                  input_shape=input_shape))
+model.add(MaxPooling2D(pool_size=(2, 2), strides=1))
 model.add(Conv2D(64, (2, 2), activation='relu'))
-model.add(MaxPooling2D(pool_size=(2, 2)))
+model.add(MaxPooling2D(pool_size=(2, 2), strides=1))
+#model.add(Conv2D(128, (2, 2), activation='relu'))
+#model.add(MaxPooling2D(pool_size=(2, 2), strides=1))
 model.add(Dropout(0.25))
 model.add(Flatten())
 model.add(Dense(128, activation='relu'))
@@ -183,22 +266,22 @@ model.add(Dense(num_classes, activation='softmax'))
 model.compile(loss=keras.losses.categorical_crossentropy,
               optimizer=keras.optimizers.Adadelta(),
               metrics=['accuracy'])
-
 fit = model.fit(x_train, y_train,
                 batch_size=batch_size,
                 epochs=epochs,
                 verbose=1,
                 validation_data=(x_test, y_test))
+'''
 score = model.evaluate(x_test, y_test, verbose=0)
 print score
 #print('Test loss:', score[0])
 #print('Test accuracy:', score[1])
-
-model.save('../model/transinet_v1.h5')
-assert False
+model.save('../model/transinet_v2.h5')
+np.save('model_x_test.npy', x_test)
+np.save('model_y_test.npy', y_test)
+np.save('model_mag_test.npy', mags_test)
 
 y_pred = model.predict_classes(x_test, verbose=1)
-
 y_test_reg = []
 for item in y_test:
     if item[0] == 1:
@@ -272,7 +355,7 @@ for n in range(20):
 
 plt.show()
 '''
-
+'''
 probs = model.predict(x_test)
 prob_of_SN = probs.T[0]
 print prob_of_SN.shape
@@ -305,7 +388,7 @@ for n in range(len(p)):
         plt.savefig('../plots/candidate%i.pdf'%n)
         plt.close()
 assert False
-
+'''
 c = 0
 '''
 fig, ax = plt.subplots(10,10, figsize=(20,20))
@@ -343,6 +426,9 @@ for arg in above97_args:
 
 plt.savefig('../plots/result_matrix_above97.pdf', bbox_inches='tight')
 '''
+probs = model.predict(x_test)
+starting_idx = 0
+fig_counter = 0
 for i in range(30):
 
     fig, ax = plt.subplots(10,10, figsize=(20,20))
