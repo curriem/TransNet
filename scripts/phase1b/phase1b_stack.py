@@ -351,6 +351,8 @@ def sort_ims(ims_path):
 
 def get_filters(ims_path):
     origfls = glob.glob(ims_path+'/*flt.fits')
+    print ims_path
+    print origfls
     filts = []
     for fl in origfls:
         f = pyfits.open(fl)
@@ -366,10 +368,8 @@ def get_filters(ims_path):
 
 #data_path = '/Users/mcurrie/Projects/TransiNet/data/'
 #path = '/Volumes/My_book/TransiNet/data/set_%s/orig_files' % set_num
-path = '/Users/mcurrie/Projects/TransiNet/data/set_%s/orig_files' % set_num
 #data_path = '/Volumes/My_book/TransiNet/data/'
-data_path = '/Users/mcurrie/Projects/TransiNet/data/'
-
+data_path = '/Volumes/My_Book/TransiNet/data/sets_newbadpix/'
 # step 0: stack images
 
 
@@ -385,7 +385,6 @@ bad_pix_list_wfc3 = data_path + 'bad_pix_list_wfc3.txt'
 set_num = sys.argv[1]
 set_dir = 'set_' + set_num
 userrefimage = ''
-
 
 do_it("mkdir %s/%s/orig_files" % (data_path, set_dir))
 
@@ -472,22 +471,9 @@ for filter in ["F775W", "F814W", "F606W", "F850LP"]:
                   + data_path + set_dir)
             do_it("rm -fv " + " ".join(new_files))
 
+unique_filters = get_filters(data_path+set_dir+'/orig_files/')
 
-
-unique_filters = get_filters(path)
-'''
-filt1, filt2, filt1_epoch1_fls, filt1_epoch2_fls, filt2_epoch1_fls,\
-filt2_epoch2_fls = sort_ims(path)
-
-filters = [filt1, filt2]
-e2_fls = filt1_epoch2_fls + filt2_epoch2_fls
-e2_fls_new = []
-for item in e2_fls:
-    e2_fls_new.append(data_path + 'set_%s/orig_files/' % set_num +item)
-e2_fls = e2_fls_new
-'''
-
-origfls = glob.glob(path+'/*flt.fits')
+origfls = glob.glob(data_path+'/orig_files/*flt.fits')
 
 with open(data_path + 'paramfile_%s.txt' % set_num, 'wb') as paramfl:
 
@@ -536,6 +522,5 @@ for item in fls_by_filter_date:
                outputname = data_path + "set_"+set_num+"_epochs/" + item[0] + "_epoch%02i" % (filter_counter.count(filter_counter[-1])),
                refimage=refimage,
                outputscale=outputscale)
-
 
 

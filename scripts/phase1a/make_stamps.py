@@ -2,15 +2,18 @@ import numpy as np
 import matplotlib.pyplot as plt
 import sep
 import astropy.io.fits as pyfits
-
+import sys
 set_nums = np.arange(0, 25, 1, dtype=int)
 #set_nums = ['play3']
 run_sep = 1 
 training_data = 0
 
 
-def run_sep_on_sub(set_num):
-    path = '/Users/mcurrie/GitRepos/step_1/set_%s_epochs/' % str(set_num)
+
+
+def run_sep_on_sub(bad_pix_dir, set_num):
+    path = '/Users/mcurrie/GitRepos/step_1/%s/set_%s_epochs/' % (bad_pix_dir,
+                                                              str(set_num))
     try:
         data_fl = path + 'F125W_epoch02_drz.fits'
         ref_fl = path + 'F125W_epoch01_drz.fits'
@@ -24,11 +27,14 @@ def run_sep_on_sub(set_num):
 
 
     sub = data[1].data - ref[1].data
+    mask = (data[3].data > 0) & (ref[3].data > 0)
+    mask = ~mask
     data.close()
     ref.close()
-    extract = sep.extract(sub, thresh=0.035)
+    extract = sep.extract(sub, mask=mask, thresh=0.035)
 
-    with open('object_coords_table.txt', 'wb') as fl:
+    with open('/Users/mcurrie/GitRepos/step_1/%s/object_coords_table.txt'
+              % bad_pix_dir, 'wb') as fl:
         fl.write('x\ty\n')
         for obj in extract:
             x = int(obj[7])
@@ -40,8 +46,8 @@ def run_sep_on_sub(set_num):
                 fl.write('%i\t%i\n' % (x, y))
 
 
-def get_mags(set_num):
-    path = '/Users/mcurrie/GitRepos/step_1/sn_files/'
+def get_mags(bad_pix_dir, set_num):
+    path = '/Users/mcurrie/GitRepos/step_1/%s/sn_files/' % bad_pix_dir
     fl = path + 'simulated_set_%s.cat' % str(set_num)
     mag_list = []
     with open(fl, 'rb') as f:
@@ -55,8 +61,8 @@ def get_mags(set_num):
     return np.array(mag_list, dtype=np.float32)
 
 
-def get_coords(set_num):
-    path = '/Users/mcurrie/GitRepos/step_1/sn_files/'
+def get_coords(bad_pix_dir, set_num):
+    path = '/Users/mcurrie/GitRepos/step_1/%s/sn_files/' % bad_pix_dir
     fl = path + 'ds9_set_%s.reg' % str(set_num)
     x_list = []
     y_list = []
@@ -76,16 +82,38 @@ def get_coords(set_num):
     return np.array(x_list), np.array(y_list)
 
 
+def make_ps(data, x, y, ps_size):
+    ps = data[y-ps_size : y+ps_size+2,
+              x-ps_size : x+ps_size+2]
 
-ps_stack_master = np.empty((0, 32, 32, 2))
+    return ps
+
+def normalize_ps(ps):
+
+    ps = ps + np.abs(np.nanmin(ps))
+
+    ps = ps/np.nanmax(ps)
+
+    return ps
+
+badpix = sys.argv[1]
+if badpix == 'new':
+    badpix_dir = '/sets_newbadpix/'
+elif badpix == 'old':
+    badpix_dir = '/sets_oldbadpix/'
+else:
+    assert False
+
+num_channels = 3
+im_size = 16
+ps_stack_master = np.empty((0, 32, 32, num_channels))
 labels_master = np.empty(0)
 info_master = np.empty((0, 3))
 mags_master = np.empty(0)
 for set_num in set_nums:
     print 'WORKING ON SET', set_num
-    mags = get_mags(set_num)
-    x, y = get_coords(set_num)
-
+    mags = get_mags(badpix_dir, set_num)
+    x, y = get_coords(badpix_dir, set_num)
     labels = []
     for mag in mags:
         if mag == 32.:
@@ -94,7 +122,8 @@ for set_num in set_nums:
             labels.append(0)
     labels = np.array(labels, dtype=np.int)
     mags = np.array(mags)
-    path = '/Users/mcurrie/GitRepos/step_1/set_%s_epochs/' % str(set_num)
+    path = '/Users/mcurrie/GitRepos/step_1/%s/set_%s_epochs/' % (badpix_dir,
+                                                                 str(set_num))
     data_fl = path + 'F160W_epoch02_drz.fits'
     ref_fl = path + 'F160W_epoch01_drz.fits'
     
@@ -102,13 +131,6 @@ for set_num in set_nums:
     ref = pyfits.open(ref_fl)
 
     sub = data[1].data - ref[1].data
-#    sub_save = data
-    #data.close()
-    #ref.close()
- #   sub_save[1].data = sub
-
-  #  sub_save.writeto('sub_test.fits')
-   # assert False
     '''
     for n in range(len(x))[:20]:
         ps = sub[y[n]-10:y[n]+11, x[n]-10:x[n]+11]
@@ -120,14 +142,25 @@ for set_num in set_nums:
     '''
     if run_sep:
 
-        run_sep_on_sub(set_num)
+        run_sep_on_sub(badpix_dir, set_num)
 
-        x_artifacts, y_artifacts = np.genfromtxt('object_coords_table.txt',
+        x_artifacts, y_artifacts = \
+        np.genfromtxt('/Users/mcurrie/GitRepos/step_1/%s/object_coords_table.txt'
+                      % badpix_dir,
                                                  skip_header=1,
                                                  dtype=np.int).T
+        with open('test.txt', 'wb') as f:
+            for item in zip(x_artifacts, y_artifacts):
+                f.write(str(item) + '\n')
+            f.write('\n')
+            for item in zip(x, y):
+                f.write(str(item) + '\n')
+        print zip(x_artifacts, y_artifacts)
+        print zip(x, y)
         counter = 0
         match_args = []
         for n in range(len(x_artifacts)):
+            matches_for_this = 0
             for m in range(len(x)):
                 if np.isclose(x_artifacts[n], x[m], atol=3) and \
                    np.isclose(y_artifacts[n], y[m], atol=3):
@@ -136,9 +169,10 @@ for set_num in set_nums:
                     print 'y:',y_artifacts[n], y[m]
                     match_args.append(n)
                     counter+=1
+                    matches_for_this+=1
                     print counter
+            assert matches_for_this < 2
         match_args = np.array(match_args)
-
         new_artifacts_bool = np.ones(len(x_artifacts))
         new_artifacts_bool[match_args] = 0
         new_artifacts_bool = new_artifacts_bool.astype(bool)
@@ -148,9 +182,12 @@ for set_num in set_nums:
         y = np.concatenate((y, y_artifacts[new_artifacts_bool]))
         labels = np.concatenate((labels, new_labels))
         mags = np.concatenate((mags, new_mags))
+        #print mags
+        #print np.unique(mags)
+        #assert np.unique(mags)[0] > 0
 
-
-    data_path = '/Users/mcurrie/GitRepos/step_1/set_%s_epochs/' % str(set_num)
+    data_path = '/Users/mcurrie/GitRepos/step_1/%s/set_%s_epochs/'%(badpix_dir,
+                                                                    str(set_num))
 
     try:
         SN_im_fl_1 = data_path + 'F125W_epoch02_drz.fits'
@@ -177,40 +214,79 @@ for set_num in set_nums:
 
     sub_data_1 = SN_data_1 - ref_data_1
     sub_data_2 = SN_data_2 - ref_data_2
-    ps_size = 15
+    ps_size = im_size/2 - 1
 
-    ps_stack = np.empty((0, 32, 32, 2))
+    ps_stack = np.empty((0, 32, 32, num_channels))
     new_labels = []
     new_mags = []
     info = []
     for n in range(len(x)):
 
+        ps_im1 = make_ps(SN_data_1, x[n], y[n], ps_size)
+        ps_ref1 = make_ps(ref_data_1, x[n], y[n], ps_size)
+        ps_sub1 = make_ps(sub_data_1, x[n], y[n], ps_size)
+        ps_im2 = make_ps(SN_data_2, x[n], y[n], ps_size)
+        ps_ref2 = make_ps(ref_data_2, x[n], y[n], ps_size)
+        ps_sub2 = make_ps(sub_data_2, x[n], y[n], ps_size)
+
+        ps_im1 = np.pad(ps_im1, pad_width=8, mode='constant')
+        ps_ref1 = np.pad(ps_ref1, pad_width=8, mode='constant')
+        ps_sub1 = np.pad(ps_sub1, pad_width=8, mode='constant')
+        ps_im2 = np.pad(ps_im2, pad_width=8, mode='constant')
+        ps_ref2 = np.pad(ps_ref2, pad_width=8, mode='constant')
+        ps_sub2 = np.pad(ps_sub2, pad_width=8, mode='constant')
+
+        ps_sub1 = np.clip(ps_sub1, -0.5, 3)
+        ps_sub2 = np.clip(ps_sub2, -0.5, 3)
+        '''
         ps_1 = sub_data_1[y[n]-ps_size : y[n]+ps_size+2,
                           x[n]-ps_size : x[n]+ps_size+2]
         ps_2 = sub_data_2[y[n]-ps_size : y[n]+ps_size+2,
                           x[n]-ps_size : x[n]+ps_size+2]
-
-        if np.isnan(np.sum(ps_1)) or np.isnan(np.sum(ps_2)):
+        ps_1 = np.clip(ps_1, -0.5, 2)
+        ps_2 = np.clip(ps_2, -0.5, 2)
+        '''
+        if np.isnan(np.sum(ps_sub1)) or np.isnan(np.sum(ps_sub2)):
             pass
-        elif ps_1.shape != (32,32):
+        elif ps_sub1.shape != (32,32):
             pass
-        elif ps_2.shape != (32,32):
+        elif ps_sub2.shape != (32,32):
             pass
         else:
-            #ps = ps.flatten()
-            try:
-                ps_1 = ps_1 + np.abs(np.nanmin(ps_1))
-            except:
-                print ps_1.shape
-                assert False
-            ps_2 = ps_2 + np.abs(np.nanmin(ps_2))
+            ps_im1 = normalize_ps(ps_im1)
+            ps_ref1 = normalize_ps(ps_ref1)
+            ps_sub1 = normalize_ps(ps_sub1)
+            ps_im2 = normalize_ps(ps_im2)
+            ps_ref2 = normalize_ps(ps_ref2)
+            ps_sub2 = normalize_ps(ps_sub2)
+            '''
+            ps_sub1 = ps_sub1 + np.abs(np.nanmin(ps_sub1))
+            ps_sub2 = ps_sub2 + np.abs(np.nanmin(ps_sub2))
 
             ps_1 = ps_1/np.nanmax(ps_1)
             ps_2 = ps_2/np.nanmax(ps_2)
-            
+            '''
             new_labels.append(labels[n])
             new_mags.append(mags[n])
-            temp_stack = np.stack((ps_1, ps_2), axis=-1)
+            if num_channels == 6:
+                temp_stack = np.stack((ps_im1,
+                                       ps_ref1,
+                                       ps_sub1,
+                                       ps_im2,
+                                       ps_ref2,
+                                       ps_sub2), axis=-1)
+            elif num_channels == 2:
+                temp_stack = np.stack((ps_sub1,
+                                       ps_sub2), axis=-1)
+            elif num_channels == 3:
+                temp_stack = np.stack((ps_sub1,
+                                       ps_sub2,
+                                       0.5*(ps_sub1+ps_sub2)),
+                                       axis=-1)
+            else:
+                print 'Invalid number of channels'
+                assert False
+
             ps_stack = np.append(ps_stack, [temp_stack], axis=0)
             info.append([int(set_num), x[n], y[n]])
 
@@ -244,7 +320,7 @@ for n in range(20):
 
 plt.show()
 '''
-ps_stack_master_new = np.empty((0, 32, 32, 2))
+ps_stack_master_new = np.empty((0, 32, 32, num_channels))
 labels_master_new = np.empty(0)
 info_master_new = np.empty((0, 3))
 mags_master_new = np.empty(0)
@@ -281,11 +357,15 @@ print ps_stack_master_new.shape
 print labels_master_new.shape
 print info_master_new.shape
 print mags_master_new.shape
-np.save('/Users/mcurrie/GitRepos/TransiNet/data/training_data.npy',
+np.save('/Users/mcurrie/GitRepos/TransiNet/data/%s/training_data.npy'
+        % badpix_dir,
         ps_stack_master_new)
-np.save('/Users/mcurrie/GitRepos/TransiNet/data/training_labels.npy',
+np.save('/Users/mcurrie/GitRepos/TransiNet/data/%s/training_labels.npy'
+        % badpix_dir,
         labels_master_new)
-np.save('/Users/mcurrie/GitRepos/TransiNet/data/training_info.npy',
+np.save('/Users/mcurrie/GitRepos/TransiNet/data/%s/training_info.npy'
+        % badpix_dir,
         info_master_new)
-np.save('/Users/mcurrie/GitRepos/TransiNet/data/training_mags.npy',
+np.save('/Users/mcurrie/GitRepos/TransiNet/data/%s/training_mags.npy'
+        % badpix_dir,
         mags_master_new)
